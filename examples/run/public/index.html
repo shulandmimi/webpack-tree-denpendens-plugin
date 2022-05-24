@@ -17,7 +17,7 @@
         <script>
             const KB = 1024;
 
-            const b2kb = v => v / 1024;
+            const b2kb = v => v / KB;
             const toGraph = {
                 create({ child, parent, parentNode, childNode }) {
                     return {
@@ -38,21 +38,20 @@
                 },
             };
 
-            function initDiagram(callback) {
+            function initDiagram(callback, dbclick) {
                 const $ = go.GraphObject.make;
 
                 const diagram = $(go.Diagram, {
-                    'undoManager.isEnabled': true, // must be set to allow for model change listening
-                    // 'undoManager.maxHistoryLength': 0,  // uncomment disable undo/redo functionality
+                    'undoManager.isEnabled': true,
                     model: $(go.GraphLinksModel, {
-                        linkKeyProperty: 'key', // this should always be set when using a GraphLinksModel
+                        linkKeyProperty: 'key',
                     }),
                     'toolManager.hoverDelay': 100,
                 });
 
                 diagram.nodeTemplate = $(
                     go.Node,
-                    'Auto', // the Shape will go around the TextBlock
+                    'Auto',
                     $(
                         go.Panel,
                         'Auto',
@@ -60,6 +59,9 @@
                             defaultAlignment: go.Spot.Center,
                             click(e, obj) {
                                 callback(e, obj);
+                            },
+                            doubleClick(e, obj) {
+                                dbclick(e, obj);
                             },
                         },
                         new go.Binding('data', '', v => v),
@@ -98,33 +100,6 @@
                     }
                 );
 
-                // myDiagram.nodeTemplate = $(
-                //     go.Node,
-                //     new go.Binding('location', 'loc'), // specified by data
-                //     INTERVAL > 20 // don't animate if INTERVAL is <= 20 milliseconds
-                //         ? new go.AnimationTrigger('position', { duration: INTERVAL, easing: go.Animation.EaseLinear })
-                //         : {},
-                //     { locationSpot: go.Spot.Center }, // at center of node
-                //     $(
-                //         go.Shape,
-                //         'Circle',
-                //         { width: 15, height: 15, strokeWidth: 3 },
-                //         new go.Binding('fill', 'color', makeFill),
-                //         new go.Binding('stroke', 'color', makeStroke)
-                //     ),
-                //     {
-                //         toolTip: $(
-                //             'ToolTip',
-                //             $(
-                //                 go.Panel,
-                //                 'Vertical',
-                //                 $(go.Picture, { margin: 3 }, new go.Binding('source', 'src', s => 'images/' + s + '.png')),
-                //                 $(go.TextBlock, { margin: 3 }, new go.Binding('text', 'key'))
-                //             )
-                //         ), // end Adornment
-                //     }
-                // );
-
                 return diagram;
             }
         </script>
@@ -143,9 +118,9 @@
 
             function App() {
                 const [data, setData] = useState({});
-                const [entry, setEntry] = useState('');
+                // const [entry, setEntry] = useState(['']);
                 const [tree, setTree] = useState([{ name: 'root' }]);
-                const [moduleNode, setModuleNode] = useState(null);
+                const [modulesData, setModulesData] = useState([{ entry: '', data: null }]);
 
                 const [graphState, setGraphState] = useState({
                     nodeData: [],
@@ -162,30 +137,42 @@
                 }, [])
 
                 const changePanel = useLatest((data) => {
-                    if(data?.meta?.module === true) {
-                        setModuleNode(data.rawNode);
-                        setEntry(data.key);
-                        console.log(data);
+                    const moduleDataItem = modulesData[modulesData.length - 1];
+                    if(data?.meta?.module === true && moduleDataItem.entry !== data.key) {
+                        setModulesData([...modulesData, {
+                            entry: data.key,
+                            data,
+                        }])
                     }
                 });
+                const backPanel = useLatest((data) => {
+                    console.log(modulesData.length);
+                    if(modulesData.length <= 1) return;
+                    const moduleDataItem = modulesData[modulesData.length - 1];
+                    if(data?.meta?.module !== true && moduleDataItem.entry !== data.key) {
+                        return;
+                    }
+                    setModulesData(modulesData.slice(0, modulesData.length - 1));
+                })
 
                 const diagram = useCallback(() => {
                     return initDiagram((e, obj) => {
                         changePanel(obj.data);
+                    }, (e, obj) => {
+                        backPanel(obj.data);
                     });
                 }, [])
 
 
 
                 useEffect(() => {
-                    const { graph, nodes } = transformProfile2Graph(data, entry, toGraph, moduleNode);
+                    const modulesDataItem = modulesData[modulesData.length - 1];
+                    const { graph, nodes } = transformProfile2Graph(data, modulesDataItem.entry, toGraph, modulesDataItem.data?.rawNode);
                     setGraphState({
                         nodeData: nodes || [],
                         linkData: graph || [],
                     })
-                }, [entry, data])
-
-                console.log(graphState);
+                }, [modulesData, data])
 
                 return (<div>
                     <ReactDiagram initDiagram={diagram} style={{ width: 1000, height: 700 }} nodeDataArray={graphState.nodeData} linkDataArray={graphState.linkData} />
