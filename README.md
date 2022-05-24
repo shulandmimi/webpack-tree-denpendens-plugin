@@ -21,8 +21,8 @@ export default {
 
 ## TO DO
 
-[ ] 页面在打包完成后从服务器获取
-[ ] profile.json 输出由参数控制
+- [ ] 页面在打包完成后从服务器获取
+- [ ] profile.json 输出由参数控制
 
 ## 启动
 
