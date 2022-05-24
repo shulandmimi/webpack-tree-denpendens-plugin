@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Document</title>
+        <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+        <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+        <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+        <script crossorigin src="https://unpkg.com/@ant-design/charts@1.3.6/dist/charts.min.js"></script>
+        <script src="https://unpkg.com/gojs/release/go-debug.js"></script>
+        <script src="https://unpkg.com/gojs-react/dist/gojsreact.production.min.js"></script>
+    </head>
+    <body>
+        <div id="root"></div>
+        <script>
+            const KB = 1024;
+
+            const b2kb = v => v / 1024;
+            const toGraph = {
+                create({ child, parent, parentNode, childNode }) {
+                    return {
+                        value: `${childNode?.meta?.moduleName || childNode?.prefix || child} ${childNode?.meta?.module ? '(module)' : ''}`,
+                        rawNode: childNode,
+                        meta: {
+                            ...childNode?.meta,
+                            fullname: childNode?.fullname,
+                        },
+                        key: child,
+                    };
+                },
+                append({ parent, parentNode, child, childNode }) {
+                    return {
+                        from: parent,
+                        to: child,
+                    };
+                },
+            };
+
+            function initDiagram(callback) {
+                const $ = go.GraphObject.make;
+
+                const diagram = $(go.Diagram, {
+                    'undoManager.isEnabled': true, // must be set to allow for model change listening
+                    // 'undoManager.maxHistoryLength': 0,  // uncomment disable undo/redo functionality
+                    model: $(go.GraphLinksModel, {
+                        linkKeyProperty: 'key', // this should always be set when using a GraphLinksModel
+                    }),
+                    'toolManager.hoverDelay': 100,
+                });
+
+                diagram.nodeTemplate = $(
+                    go.Node,
+                    'Auto', // the Shape will go around the TextBlock
+                    $(
+                        go.Panel,
+                        'Auto',
+                        {
+                            defaultAlignment: go.Spot.Center,
+                            click(e, obj) {
+                                callback(e, obj);
+                            },
+                        },
+                        new go.Binding('data', '', v => v),
+                        $(go.Shape, 'RoundedRectangle', {
+                            strokeWidth: 0,
+                            fill: 'white',
+                            height: 30,
+                        }),
+                        $(
+                            go.TextBlock,
+                            {
+                                margin: 8,
+                            },
+                            new go.Binding('text', 'value')
+                        )
+                    ),
+
+                    {
+                        toolTip: $(
+                            'ToolTip',
+                            $(
+                                go.Panel,
+                                'Vertical',
+                                {
+                                    defaultAlignment: go.Spot.Left,
+                                },
+                                $(go.TextBlock, { margin: 3 }, new go.Binding('text', 'meta', v => `total size: ${b2kb(v.totalSize).toFixed(2)}kb`)),
+                                $(go.TextBlock, { margin: 3 }, new go.Binding('text', 'value', v => `filename: ${v}`)),
+                                $(
+                                    go.TextBlock,
+                                    { margin: 3 },
+                                    new go.Binding('text', 'meta', v => `type: ${v?.module === true ? 'module' : 'unknow'}`)
+                                )
+                            )
+                        ),
+                    }
+                );
+
+                // myDiagram.nodeTemplate = $(
+                //     go.Node,
+                //     new go.Binding('location', 'loc'), // specified by data
+                //     INTERVAL > 20 // don't animate if INTERVAL is <= 20 milliseconds
+                //         ? new go.AnimationTrigger('position', { duration: INTERVAL, easing: go.Animation.EaseLinear })
+                //         : {},
+                //     { locationSpot: go.Spot.Center }, // at center of node
+                //     $(
+                //         go.Shape,
+                //         'Circle',
+                //         { width: 15, height: 15, strokeWidth: 3 },
+                //         new go.Binding('fill', 'color', makeFill),
+                //         new go.Binding('stroke', 'color', makeStroke)
+                //     ),
+                //     {
+                //         toolTip: $(
+                //             'ToolTip',
+                //             $(
+                //                 go.Panel,
+                //                 'Vertical',
+                //                 $(go.Picture, { margin: 3 }, new go.Binding('source', 'src', s => 'images/' + s + '.png')),
+                //                 $(go.TextBlock, { margin: 3 }, new go.Binding('text', 'key'))
+                //             )
+                //         ), // end Adornment
+                //     }
+                // );
+
+                return diagram;
+            }
+        </script>
+        <script type="text/jsx">
+            const { useEffect, useState, useRef, useMemo, useCallback } = React;
+            const { RadialTreeGraph, OrganizationGraph } = Charts;
+            const { ReactDiagram } = goJsReact;
+
+            function useLatest(callback) {
+                const callbackRef = useRef(callback);
+                callbackRef.current = callback;
+                return useCallback((...arg) => {
+                    callbackRef.current(...arg);
+                }, []);
+            }
+
+            function App() {
+                const [data, setData] = useState({});
+                const [entry, setEntry] = useState('');
+                const [tree, setTree] = useState([{ name: 'root' }]);
+                const [moduleNode, setModuleNode] = useState(null);
+
+                const [graphState, setGraphState] = useState({
+                    nodeData: [],
+                    linkData: []
+                });
+
+                const containerRef = useRef(null);
+
+                useEffect(() => {
+                    fetch('./profile.json').then(async res => {
+                        const json = await res.json();
+                        setData(json);
+                    });
+                }, [])
+
+                const changePanel = useLatest((data) => {
+                    if(data?.meta?.module === true) {
+                        setModuleNode(data.rawNode);
+                        setEntry(data.key);
+                        console.log(data);
+                    }
+                });
+
+                const diagram = useCallback(() => {
+                    return initDiagram((e, obj) => {
+                        changePanel(obj.data);
+                    });
+                }, [])
+
+
+
+                useEffect(() => {
+                    const { graph, nodes } = transformProfile2Graph(data, entry, toGraph, moduleNode);
+                    setGraphState({
+                        nodeData: nodes || [],
+                        linkData: graph || [],
+                    })
+                }, [entry, data])
+
+                console.log(graphState);
+
+                return (<div>
+                    <ReactDiagram initDiagram={diagram} style={{ width: 1000, height: 700 }} nodeDataArray={graphState.nodeData} linkDataArray={graphState.linkData} />
+                </div>);
+            }
+
+            ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+        </script>
+        <script src="web.js"></script>
+    </body>
+</html>

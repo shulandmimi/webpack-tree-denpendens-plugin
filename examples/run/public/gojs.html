@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Document</title>
+    </head>
+    <body>
+        <div id="myDiagramDiv" style="width: 800px; height: 500px; background-color: #dae4e4"></div>
+        <script src="https://unpkg.com/gojs/release/go-debug.js"></script>
+        <script>
+            const myDiagram = new go.Diagram(
+                'myDiagramDiv', // create a Diagram for the HTML Div element
+                { 'undoManager.isEnabled': true }
+            ); // enable undo & redo
+
+            // define a simple Node template
+            myDiagram.nodeTemplate = new go.Node('Auto') // the Shape will automatically surround the TextBlock
+                // add a Shape and a TextBlock to this "Auto" Panel
+                .add(
+                    new go.Shape('RoundedRectangle', { strokeWidth: 0, fill: 'white' }) // no border; default fill is white
+                        .bind('fill', 'color')
+                ) // Shape.fill is bound to Node.data.color
+                .add(
+                    new go.TextBlock({ margin: 8, stroke: '#333' }) // some room around the text
+                        .bind('text', 'key')
+                )
+            // TextBlock.text is bound to Node.data.key
+
+            // but use the default Link template, by not setting Diagram.linkTemplate
+
+            // create the model data that will be represented by Nodes and Links
+            myDiagram.model = new go.GraphLinksModel(
+                [
+                    { key: 'Alpha', color: 'lightblue' },
+                    { key: 'Beta', color: 'orange' },
+                    { key: 'Gamma', color: 'lightgreen' },
+                    { key: 'Delta', color: 'pink' },
+                ],
+                [
+                    { from: 'Alpha', to: 'Beta' },
+                    { from: 'Alpha', to: 'Gamma' },
+                    { from: 'Beta', to: 'Beta' },
+                    { from: 'Gamma', to: 'Delta' },
+                    { from: 'Delta', to: 'Alpha' },
+                ]
+            );
+        </script>
+    </body>
+</html>
