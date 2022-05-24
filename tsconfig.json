@@ -10,8 +10,10 @@
         "baseUrl": ".",
         "declaration": true,
         "downlevelIteration": true,
+        "declarationDir": "packages/core",
         "allowJs": true,
         "checkJs": false,
     },
-    "include": ["./src/"]
+    "include": ["./src/"],
+    "exclude": ["./examples/"]
 }

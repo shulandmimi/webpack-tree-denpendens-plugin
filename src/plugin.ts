@@ -11,9 +11,11 @@ interface Node {
     [key: string]: any;
 }
 
-abstract class ModuleNode {
-    public abstract name: string;
-    public abstract fullpath: string;
+interface ModuleNode {
+    // 模块所在位置
+    modulePath: string;
+    // 模块入口文件
+    moduleEntry: string;
 }
 
 function fetchRealPath() {}
@@ -66,7 +68,7 @@ export default class WebpackTreeDenpendensPlugin implements WebpackPluginInstanc
 
     apply(compiler: Compiler) {
         const map = new Map<string, string[]>();
-        const modules = new Map();
+        const modules = new Map<string, ModuleNode>();
         const prefixTree = new PrefixTree();
         compiler.hooks.normalModuleFactory.tap(PluginName, normalModule => {
             normalModule.hooks.afterResolve.tap(PluginName, resolveData => {
@@ -139,26 +141,6 @@ export default class WebpackTreeDenpendensPlugin implements WebpackPluginInstanc
             compiler.outputFileSystem.writeFile(path.join(compiler.outputPath, 'profile.json'), JSON.stringify(profileDatas), err => {
                 if (err) throw err;
             });
-        });
-
-        compiler.hooks.compilation.tap(PluginName, compilation => {
-            // compilation.hooks.afterOptimizeChunkAssets.tap(PluginName, chunks => {
-            //     console.log(compilation.getAssets().map(item => item.source.size()));
-            // });
-            // compilation.hooks.processAssets.tap({ name: PluginName, stage: Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_TRANSFER }, assets => {
-            //     for (const index in assets) {
-            //         const asset = assets[index];
-            //     }
-            // });
-            // compilation.hooks.afterOptimizeChunks.tap(PluginName, chunks => {
-            //     for(const chunk of chunks) {
-            //         console.log(chunk.name)
-            //         console.log(chunk.modulesSize());
-            //     }
-            // });
-            // compilation.hooks.shouldRecord.tap(PluginName, () => {
-            // console.log(chunks, modules);
-            // })
         });
     }
 }

@@ -86,7 +86,12 @@ export function transformProfile2denpendenTree(profiles: ProfileStruct, entry: s
 
 export function transformProfile2Graph(profiles: ProfileStruct, entry: string, actions: Actions, moduleNode?: TreeNode) {
     const { denpendensTree, prefixTree: prefixTreeJSON, modules } = profiles || {};
-    const entryNode = actions.create({ parent: entry, child: '入口', parentNode: null, childNode: null });
+    const entryNode = actions.create({
+        parent: '',
+        child: entry,
+        parentNode: null,
+        childNode: moduleNode,
+    });
     if (!denpendensTree) return entryNode;
     const prefixTree = PrefixTree.fromJSON(prefixTreeJSON);
     const modulesValueMap = modules.reduce((result, module) => {
@@ -99,8 +104,7 @@ export function transformProfile2Graph(profiles: ProfileStruct, entry: string, a
     }, new Map());
 
     const stopWhenMetaModule = (node: TreeNode) => {
-
-        if (moduleNode && (moduleNode?.fullname === node.fullname)) {
+        if (moduleNode && moduleNode?.fullname === node.fullname) {
             return false;
         }
         if (Object.prototype.hasOwnProperty.call(node.meta, 'module')) {
